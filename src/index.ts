@@ -52,17 +52,10 @@ function convertTimestamp(timestampUs: number | bigint): Time {
 
 // Build position covariance matrix from eph and epv
 // Position covariance is in ENU (East, North, Up) frame, row-major order
-function buildPositionCovariance(eph?: number, epv?: number): [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-] {
+function buildPositionCovariance(
+  eph?: number,
+  epv?: number,
+): [number, number, number, number, number, number, number, number, number] {
   if (eph === undefined && epv === undefined) {
     return [0, 0, 0, 0, 0, 0, 0, 0, 0];
   }
@@ -77,9 +70,15 @@ function buildPositionCovariance(eph?: number, epv?: number): [
   // [U_E  U_N  U_U]
   // For diagonal covariance: E_E = N_N = eph^2, U_U = epv^2
   return [
-    ephVar, 0, 0, // East-East, East-North, East-Up
-    0, ephVar, 0, // North-East, North-North, North-Up
-    0, 0, epvVar, // Up-East, Up-North, Up-Up
+    ephVar,
+    0,
+    0, // East-East, East-North, East-Up
+    0,
+    ephVar,
+    0, // North-East, North-North, North-Up
+    0,
+    0,
+    epvVar, // Up-East, Up-North, Up-Up
   ];
 }
 
@@ -87,7 +86,12 @@ function buildPositionCovariance(eph?: number, epv?: number): [
 // NED heading: 0 = North, positive = clockwise
 // ENU yaw: 0 = East, positive = counter-clockwise
 // Conversion: ENU_yaw = π/2 - NED_heading
-function nedHeadingToEnuQuaternion(nedHeading: number): { w: number; x: number; y: number; z: number } {
+function nedHeadingToEnuQuaternion(nedHeading: number): {
+  w: number;
+  x: number;
+  y: number;
+  z: number;
+} {
   // Convert NED heading to ENU yaw
   const enuYaw = Math.PI / 2 - nedHeading;
   const halfYaw = enuYaw / 2;
@@ -136,9 +140,9 @@ function nedQuaternionToEnu(q: [number, number, number, number]): Quaternion {
   // representing body-to-earth rotation is:
   return {
     w: w,
-    x: y,   // Swap x and y
-    y: x,   // Swap x and y
-    z: -z,  // Negate z (accounting for Z-axis flip)
+    x: y, // Swap x and y
+    y: x, // Swap x and y
+    z: -z, // Negate z (accounting for Z-axis flip)
   };
 }
 
@@ -245,14 +249,13 @@ export function activate(extensionContext: ExtensionContext): void {
       // Convert NED to ENU frame
       // NED: X=North, Y=East, Z=Down
       // ENU: X=East, Y=North, Z=Up
-      const x_enu = y;      // East = East
-      const y_enu = x;      // North = North
-      const z_enu = -z;     // Up = -Down
+      const x_enu = y; // East = East
+      const y_enu = x; // North = North
+      const z_enu = -z; // Up = -Down
 
       // Use heading to create quaternion if available, otherwise use identity rotation
-      const rotation = heading !== undefined
-        ? nedHeadingToEnuQuaternion(heading)
-        : { w: 1, x: 0, y: 0, z: 0 }; // Identity quaternion
+      const rotation =
+        heading !== undefined ? nedHeadingToEnuQuaternion(heading) : { w: 1, x: 0, y: 0, z: 0 }; // Identity quaternion
 
       return {
         timestamp: time,
@@ -265,13 +268,10 @@ export function activate(extensionContext: ExtensionContext): void {
   });
 
   extensionContext.registerMessageConverter({
-    type: "schema" as const,
+    type: "schema",
     fromSchemaName: "vehicle_attitude",
     toSchemaName: "foxglove.FrameTransform",
-    converter: (
-      inputMessage: VehicleAttitude,
-      _messageEvent: MessageEvent<VehicleAttitude>,
-    ): FrameTransform => {
+    converter: (inputMessage: VehicleAttitude): FrameTransform => {
       const q = inputMessage.q;
       const timestamp = inputMessage.timestamp;
 
