@@ -265,7 +265,7 @@ export function activate(extensionContext: ExtensionContext): void {
   });
 
   extensionContext.registerMessageConverter({
-    type: "schema",
+    type: "schema" as const,
     fromSchemaName: "vehicle_attitude",
     toSchemaName: "foxglove.FrameTransform",
     converter: (
@@ -293,5 +293,5 @@ export function activate(extensionContext: ExtensionContext): void {
         rotation: pitchRollRotation,
       } as FrameTransform;
     },
-  } as unknown as Parameters<typeof extensionContext.registerMessageConverter>[0]);
+  });
 }
