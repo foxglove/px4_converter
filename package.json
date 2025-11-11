@@ -2,10 +2,10 @@
   "name": "px4Converter",
   "displayName": "px4Converter",
   "description": "",
-  "publisher": "unknown",
+  "publisher": "Foxglove",
   "homepage": "",
   "version": "0.0.0",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "./dist/extension.js",
   "keywords": [],
   "scripts": {

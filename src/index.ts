@@ -1,5 +1,5 @@
 import { ExtensionContext, MessageEvent } from "@foxglove/extension";
-import { LocationFix, Time } from "@foxglove/schemas";
+import { FrameTransform, LocationFix, Time } from "@foxglove/schemas";
 
 // PX4 VehicleGlobalPosition message type
 // Fused global position in WGS84 from the position estimator
@@ -14,6 +14,18 @@ type VehicleGlobalPosition = {
   alt_valid?: boolean; // Whether altitude is valid
   eph?: number; // Standard deviation of horizontal position error, (metres)
   epv?: number; // Standard deviation of vertical position error, (metres)
+  [key: string]: unknown; // Allow for additional fields
+};
+
+// PX4 VehicleLocalPosition message type
+// Local position estimate in NED frame
+type VehicleLocalPosition = {
+  timestamp: number | bigint; // time since system start (microseconds) - uint64 can be BigInt
+  timestamp_sample?: number | bigint; // the timestamp of the raw data (microseconds)
+  x: number; // X position in meters (North)
+  y: number; // Y position in meters (East)
+  z: number; // Z position in meters (Down)
+  heading?: number; // Heading angle in radians (0 = North, positive = clockwise)
   [key: string]: unknown; // Allow for additional fields
 };
 
@@ -60,6 +72,22 @@ function buildPositionCovariance(eph?: number, epv?: number): [
   ];
 }
 
+// Convert NED heading to ENU yaw and then to quaternion
+// NED heading: 0 = North, positive = clockwise
+// ENU yaw: 0 = East, positive = counter-clockwise
+// Conversion: ENU_yaw = π/2 - NED_heading
+function nedHeadingToEnuQuaternion(nedHeading: number): { w: number; x: number; y: number; z: number } {
+  // Convert NED heading to ENU yaw
+  const enuYaw = Math.PI / 2 - nedHeading;
+  const halfYaw = enuYaw / 2;
+  return {
+    w: Math.cos(halfYaw),
+    x: 0,
+    y: 0,
+    z: Math.sin(halfYaw),
+  };
+}
+
 export function activate(extensionContext: ExtensionContext): void {
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -94,6 +122,41 @@ export function activate(extensionContext: ExtensionContext): void {
         position_covariance,
         position_covariance_type,
       } as LocationFix; // If we don't provide color, the defaults will show the current position
+    },
+  });
+
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "vehicle_local_position",
+    toSchemaName: "foxglove.FrameTransform",
+    converter: (
+      inputMessage: VehicleLocalPosition,
+      _messageEvent: MessageEvent<VehicleLocalPosition>,
+    ): FrameTransform => {
+      const { x, y, z, timestamp, heading } = inputMessage;
+
+      // Convert timestamp
+      const time = convertTimestamp(timestamp);
+
+      // Convert NED to ENU frame
+      // NED: X=North, Y=East, Z=Down
+      // ENU: X=East, Y=North, Z=Up
+      const x_enu = y;      // East = East
+      const y_enu = x;      // North = North
+      const z_enu = -z;     // Up = -Down
+
+      // Use heading to create quaternion if available, otherwise use identity rotation
+      const rotation = heading !== undefined
+        ? nedHeadingToEnuQuaternion(heading)
+        : { w: 1, x: 0, y: 0, z: 0 }; // Identity quaternion
+
+      return {
+        timestamp: time,
+        parent_frame_id: "map",
+        child_frame_id: "base_intermediate", // Has no roll and pitch, only yaw
+        translation: { x: x_enu, y: y_enu, z: z_enu },
+        rotation,
+      } as FrameTransform;
     },
   });
 }
