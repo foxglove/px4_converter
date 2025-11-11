@@ -1,5 +1,5 @@
 import { ExtensionContext, MessageEvent } from "@foxglove/extension";
-import { FrameTransform, LocationFix, Time } from "@foxglove/schemas";
+import { FrameTransform, LocationFix, PosesInFrame, Time } from "@foxglove/schemas";
 
 // PX4 VehicleGlobalPosition message type
 // Fused global position in WGS84 from the position estimator
@@ -293,5 +293,79 @@ export function activate(extensionContext: ExtensionContext): void {
         rotation: pitchRollRotation,
       } as FrameTransform;
     },
-  } as unknown as Parameters<typeof extensionContext.registerMessageConverter>[0]);
+  } as unknown as Parameters<typeof extensionContext.registerMessageConverter>[0]); // Hack until FG-13449 is fixed
+
+
+  type PoseWithTimestamp = {
+    position: { x: number; y: number; z: number };
+    orientation: { x: number; y: number; z: number; w: number };
+    timestamp: Time;
+  };
+
+  const accumulatedPoses: PoseWithTimestamp[] = [];
+  const MAX_POSES = 10000; // Maximum number of poses to keep (sliding window)
+  const MIN_DISTANCE_M = 0.03; // Minimum distance in meters before adding a new pose
+
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "vehicle_local_position",
+    toSchemaName: "foxglove.PosesInFrame",
+    converter: (
+      inputMessage: VehicleLocalPosition,
+      _messageEvent: MessageEvent<VehicleLocalPosition>,
+    ): PosesInFrame => {
+      const { x, y, z, timestamp, heading } = inputMessage;
+
+      const time = convertTimestamp(timestamp);
+
+      // Convert NED to ENU frame
+      // NED: X=North, Y=East, Z=Down
+      // ENU: X=East, Y=North, Z=Up
+      const x_enu = y;      // East = East
+      const y_enu = x;      // North = North
+      const z_enu = -z;     // Up = -Down
+
+      // Create orientation from heading if available, otherwise use identity
+      const orientation = heading !== undefined
+        ? nedHeadingToEnuQuaternion(heading)
+        : { w: 1, x: 0, y: 0, z: 0 };
+
+      // Only add pose if it's required distance away from the last pose
+      let shouldAddPose = true;
+      if (accumulatedPoses.length > 0) {
+        const lastPose = accumulatedPoses[accumulatedPoses.length - 1]!; // Safe: we checked length > 0
+        const dx = x_enu - lastPose.position.x;
+        const dy = y_enu - lastPose.position.y;
+        const dz = z_enu - lastPose.position.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        shouldAddPose = distance >= MIN_DISTANCE_M;
+      }
+
+      // Add new pose to accumulated array if needed
+      if (shouldAddPose) {
+        accumulatedPoses.push({
+          position: { x: x_enu, y: y_enu, z: z_enu },
+          orientation,
+          timestamp: time,
+        });
+
+        // Keep fixed sliding window of poses
+        if (accumulatedPoses.length > MAX_POSES) {
+          accumulatedPoses.shift(); // Remove oldest pose
+        }
+      }
+
+      const poses = accumulatedPoses.map((p) => ({
+        position: p.position,
+        orientation: p.orientation,
+      }));
+
+      // Create PosesInFrame message
+      return {
+        timestamp: time,
+        frame_id: "map",
+        poses, // All accumulated poses (within limits)
+      } as PosesInFrame;
+    },
+  });
 }
