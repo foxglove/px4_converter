@@ -1,4 +1,4 @@
-import { ExtensionContext, MessageEvent } from "@foxglove/extension";
+import { ExtensionContext } from "@foxglove/extension";
 import { FrameTransform, LocationFix, PosesInFrame, Time } from "@foxglove/schemas";
 
 // PX4 VehicleGlobalPosition message type
@@ -199,7 +199,6 @@ export function activate(extensionContext: ExtensionContext): void {
     toSchemaName: "foxglove.LocationFix",
     converter: (
       inputMessage: VehicleGlobalPosition,
-      _messageEvent: MessageEvent<VehicleGlobalPosition>,
     ): LocationFix => {
       const { lat, lon, alt, timestamp, eph, epv } = inputMessage;
 
@@ -234,8 +233,7 @@ export function activate(extensionContext: ExtensionContext): void {
     fromSchemaName: "vehicle_local_position",
     toSchemaName: "foxglove.FrameTransform",
     converter: (
-      inputMessage: VehicleLocalPosition,
-      _messageEvent: MessageEvent<VehicleLocalPosition>,
+      inputMessage: VehicleLocalPosition
     ): FrameTransform => {
       const { x, y, z, timestamp, heading } = inputMessage;
 
@@ -268,10 +266,7 @@ export function activate(extensionContext: ExtensionContext): void {
     type: "schema",
     fromSchemaName: "vehicle_attitude",
     toSchemaName: "foxglove.FrameTransform",
-    converter: (
-      inputMessage: VehicleAttitude,
-      _messageEvent: MessageEvent<VehicleAttitude>,
-    ): FrameTransform => {
+    converter: (inputMessage: VehicleAttitude): FrameTransform => {
       const q = inputMessage.q;
       const timestamp = inputMessage.timestamp;
 
@@ -293,7 +288,7 @@ export function activate(extensionContext: ExtensionContext): void {
         rotation: pitchRollRotation,
       } as FrameTransform;
     },
-  } as unknown as Parameters<typeof extensionContext.registerMessageConverter>[0]); // Hack until FG-13449 is fixed
+  });
 
 
   type PoseWithTimestamp = {
@@ -311,8 +306,7 @@ export function activate(extensionContext: ExtensionContext): void {
     fromSchemaName: "vehicle_local_position",
     toSchemaName: "foxglove.PosesInFrame",
     converter: (
-      inputMessage: VehicleLocalPosition,
-      _messageEvent: MessageEvent<VehicleLocalPosition>,
+      inputMessage: VehicleLocalPosition
     ): PosesInFrame => {
       const { x, y, z, timestamp, heading } = inputMessage;
 
