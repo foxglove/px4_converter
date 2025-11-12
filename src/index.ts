@@ -52,24 +52,17 @@ function convertTimestamp(timestampUs: number | bigint): Time {
 
 // Build position covariance matrix from eph and epv
 // Position covariance is in ENU (East, North, Up) frame, row-major order
-function buildPositionCovariance(eph?: number, epv?: number): [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-] {
-  if (eph === undefined && epv === undefined) {
+function buildPositionCovariance(
+  eph?: number,
+  epv?: number,
+): [number, number, number, number, number, number, number, number, number] {
+  if (eph == undefined && epv == undefined) {
     return [0, 0, 0, 0, 0, 0, 0, 0, 0];
   }
 
   // Convert standard deviation to variance (square it)
-  const ephVar = eph !== undefined ? eph * eph : 0;
-  const epvVar = epv !== undefined ? epv * epv : 0;
+  const ephVar = eph != undefined ? eph * eph : 0;
+  const epvVar = epv != undefined ? epv * epv : 0;
 
   // Position covariance matrix in ENU frame (row-major):
   // [E_E  E_N  E_U]
@@ -77,9 +70,15 @@ function buildPositionCovariance(eph?: number, epv?: number): [
   // [U_E  U_N  U_U]
   // For diagonal covariance: E_E = N_N = eph^2, U_U = epv^2
   return [
-    ephVar, 0, 0, // East-East, East-North, East-Up
-    0, ephVar, 0, // North-East, North-North, North-Up
-    0, 0, epvVar, // Up-East, Up-North, Up-Up
+    ephVar,
+    0,
+    0, // East-East, East-North, East-Up
+    0,
+    ephVar,
+    0, // North-East, North-North, North-Up
+    0,
+    0,
+    epvVar, // Up-East, Up-North, Up-Up
   ];
 }
 
@@ -87,7 +86,12 @@ function buildPositionCovariance(eph?: number, epv?: number): [
 // NED heading: 0 = North, positive = clockwise
 // ENU yaw: 0 = East, positive = counter-clockwise
 // Conversion: ENU_yaw = π/2 - NED_heading
-function nedHeadingToEnuQuaternion(nedHeading: number): { w: number; x: number; y: number; z: number } {
+function nedHeadingToEnuQuaternion(nedHeading: number): {
+  w: number;
+  x: number;
+  y: number;
+  z: number;
+} {
   // Convert NED heading to ENU yaw
   const enuYaw = Math.PI / 2 - nedHeading;
   const halfYaw = enuYaw / 2;
@@ -110,43 +114,19 @@ type Quaternion = { w: number; x: number; y: number; z: number };
 function nedQuaternionToEnu(q: [number, number, number, number]): Quaternion {
   const [w, x, y, z] = q;
 
-  // NED to ENU frame transformation:
-  // 1. Rotate 90° around Z (North -> East)
-  // 2. Rotate 180° around X (Down -> Up)
-  // Combined: this swaps X↔Y and negates Z
-  // The transformation quaternion for 90° Z then 180° X
-  // q_transform = q_z(90°) * q_x(180°)
-  // q_z(90°) = [cos(45°), 0, 0, sin(45°)] = [√2/2, 0, 0, √2/2]
-  // q_x(180°) = [cos(90°), sin(90°), 0, 0] = [0, 1, 0, 0]
-  // q_transform = [0, √2/2, 0, √2/2]
-
-  // Actually, simpler: the effect is to swap X↔Y and negate Z in the quaternion
-  // But we need to properly transform the quaternion, not just swap components
-  // For a quaternion q representing rotation R, transforming to new frame F:
-  // q_new = q_frame * q * q_frame^-1
-
-  // The frame transformation from NED to ENU:
-  // - X: North -> East (rotate 90° around Z)
-  // - Y: East -> North (rotate -90° around Z)
-  // - Z: Down -> Up (flip)
-  // This is equivalent to: rotate 90° around Z, then 180° around new X
-
   // Simplified transformation for quaternion components:
   // When transforming a quaternion from NED to ENU, the effect on the quaternion
   // representing body-to-earth rotation is:
   return {
-    w: w,
-    x: y,   // Swap x and y
-    y: x,   // Swap x and y
-    z: -z,  // Negate z (accounting for Z-axis flip)
+    w,
+    x: y, // Swap x and y
+    y: x, // Swap x and y
+    z: -z, // Negate z (accounting for Z-axis flip)
   };
 }
 
 // Extract yaw (rotation around Z-axis) from quaternion
 function extractYaw(q: Quaternion): number {
-  // Yaw is rotation around Z-axis
-  // For quaternion q = [w, x, y, z], yaw = atan2(2*(w*z + x*y), 1 - 2*(y^2 + z^2))
-  // But simpler: yaw = atan2(2*(w*z + x*y), 1 - 2*(y^2 + z^2))
   const yaw = Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
   return yaw;
 }
@@ -162,7 +142,6 @@ function yawToQuaternion(yaw: number): Quaternion {
   };
 }
 
-// Multiply two quaternions: q1 * q2
 function multiplyQuaternions(q1: Quaternion, q2: Quaternion): Quaternion {
   return {
     w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
@@ -172,7 +151,6 @@ function multiplyQuaternions(q1: Quaternion, q2: Quaternion): Quaternion {
   };
 }
 
-// Get quaternion conjugate (inverse for unit quaternion)
 function quaternionConjugate(q: Quaternion): Quaternion {
   return { w: q.w, x: -q.x, y: -q.y, z: -q.z };
 }
@@ -193,13 +171,11 @@ function extractPitchAndRoll(q: Quaternion): Quaternion {
 }
 
 export function activate(extensionContext: ExtensionContext): void {
-  extensionContext.registerMessageConverter({
+  extensionContext.registerMessageConverter<VehicleGlobalPosition>({
     type: "schema",
     fromSchemaName: "vehicle_global_position",
     toSchemaName: "foxglove.LocationFix",
-    converter: (
-      inputMessage: VehicleGlobalPosition,
-    ): LocationFix => {
+    converter: (inputMessage, _messageEvent): LocationFix => {
       const { lat, lon, alt, timestamp, eph, epv } = inputMessage;
 
       // Use the position values directly (even if marked invalid, they may still be useful for debugging)
@@ -208,49 +184,43 @@ export function activate(extensionContext: ExtensionContext): void {
       const longitude = lon;
       const altitude = alt;
 
-      // Convert timestamp
       const time = convertTimestamp(timestamp);
 
-      // Build position covariance from eph and epv if available
       const position_covariance = buildPositionCovariance(eph, epv);
-      const hasCovariance = eph !== undefined || epv !== undefined;
+      const hasCovariance = eph != undefined || epv != undefined;
       const position_covariance_type = hasCovariance ? 2 : 0; // 2 = DIAGONAL_KNOWN, 0 = UNKNOWN
 
       return {
         timestamp: time,
-        frame_id: "base_link", // Default frame, adjust as needed
+        frame_id: "base_link",
         latitude,
         longitude,
         altitude,
         position_covariance,
         position_covariance_type,
-      } as LocationFix; // If we don't provide color, the defaults will show the current position
+      } as LocationFix;
     },
   });
 
-  extensionContext.registerMessageConverter({
+  extensionContext.registerMessageConverter<VehicleLocalPosition>({
     type: "schema",
     fromSchemaName: "vehicle_local_position",
     toSchemaName: "foxglove.FrameTransform",
-    converter: (
-      inputMessage: VehicleLocalPosition
-    ): FrameTransform => {
+    converter: (inputMessage, _messageEvent): FrameTransform => {
       const { x, y, z, timestamp, heading } = inputMessage;
 
-      // Convert timestamp
       const time = convertTimestamp(timestamp);
 
       // Convert NED to ENU frame
       // NED: X=North, Y=East, Z=Down
       // ENU: X=East, Y=North, Z=Up
-      const x_enu = y;      // East = East
-      const y_enu = x;      // North = North
-      const z_enu = -z;     // Up = -Down
+      const x_enu = y; // East = East
+      const y_enu = x; // North = North
+      const z_enu = -z; // Up = -Down
 
       // Use heading to create quaternion if available, otherwise use identity rotation
-      const rotation = heading !== undefined
-        ? nedHeadingToEnuQuaternion(heading)
-        : { w: 1, x: 0, y: 0, z: 0 }; // Identity quaternion
+      const rotation =
+        heading != undefined ? nedHeadingToEnuQuaternion(heading) : { w: 1, x: 0, y: 0, z: 0 }; // Identity quaternion
 
       return {
         timestamp: time,
@@ -262,22 +232,18 @@ export function activate(extensionContext: ExtensionContext): void {
     },
   });
 
-  extensionContext.registerMessageConverter({
+  extensionContext.registerMessageConverter<VehicleAttitude>({
     type: "schema",
     fromSchemaName: "vehicle_attitude",
     toSchemaName: "foxglove.FrameTransform",
-    converter: (inputMessage: VehicleAttitude): FrameTransform => {
+    converter: (inputMessage, _messageEvent): FrameTransform => {
       const q = inputMessage.q;
       const timestamp = inputMessage.timestamp;
 
-      // Convert timestamp
       const time = convertTimestamp(timestamp);
 
-      // Convert quaternion from NED to ENU frame
       const qEnu = nedQuaternionToEnu(q);
 
-      // Extract pitch and roll only (remove yaw)
-      // This gives the rotation from base_intermediate (yaw-only) to base_link (full attitude)
       const pitchRollRotation = extractPitchAndRoll(qEnu);
 
       return {
@@ -290,7 +256,6 @@ export function activate(extensionContext: ExtensionContext): void {
     },
   });
 
-
   type PoseWithTimestamp = {
     position: { x: number; y: number; z: number };
     orientation: { x: number; y: number; z: number; w: number };
@@ -301,13 +266,11 @@ export function activate(extensionContext: ExtensionContext): void {
   const MAX_POSES = 10000; // Maximum number of poses to keep (sliding window)
   const MIN_DISTANCE_M = 0.03; // Minimum distance in meters before adding a new pose
 
-  extensionContext.registerMessageConverter({
+  extensionContext.registerMessageConverter<VehicleLocalPosition>({
     type: "schema",
     fromSchemaName: "vehicle_local_position",
     toSchemaName: "foxglove.PosesInFrame",
-    converter: (
-      inputMessage: VehicleLocalPosition
-    ): PosesInFrame => {
+    converter: (inputMessage, _messageEvent): PosesInFrame => {
       const { x, y, z, timestamp, heading } = inputMessage;
 
       const time = convertTimestamp(timestamp);
@@ -315,14 +278,13 @@ export function activate(extensionContext: ExtensionContext): void {
       // Convert NED to ENU frame
       // NED: X=North, Y=East, Z=Down
       // ENU: X=East, Y=North, Z=Up
-      const x_enu = y;      // East = East
-      const y_enu = x;      // North = North
-      const z_enu = -z;     // Up = -Down
+      const x_enu = y; // East = East
+      const y_enu = x; // North = North
+      const z_enu = -z; // Up = -Down
 
       // Create orientation from heading if available, otherwise use identity
-      const orientation = heading !== undefined
-        ? nedHeadingToEnuQuaternion(heading)
-        : { w: 1, x: 0, y: 0, z: 0 };
+      const orientation =
+        heading != undefined ? nedHeadingToEnuQuaternion(heading) : { w: 1, x: 0, y: 0, z: 0 };
 
       // Only add pose if it's required distance away from the last pose
       let shouldAddPose = true;
@@ -358,7 +320,7 @@ export function activate(extensionContext: ExtensionContext): void {
       return {
         timestamp: time,
         frame_id: "map",
-        poses, // All accumulated poses (within limits)
+        poses, // All accumulated poses
       } as PosesInFrame;
     },
   });
