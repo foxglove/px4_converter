@@ -82,6 +82,25 @@ function buildPositionCovariance(
   ];
 }
 
+// Convert position from NED to ENU frame
+// NED: X=North, Y=East, Z=Down
+// ENU: X=East, Y=North, Z=Up
+function nedToEnuPosition(
+  x: number,
+  y: number,
+  z: number,
+): {
+  x: number;
+  y: number;
+  z: number;
+} {
+  return {
+    x: y, // East = East
+    y: x, // North = North
+    z: -z, // Up = -Down
+  };
+}
+
 // Convert NED heading to ENU yaw and then to quaternion
 // NED heading: 0 = North, positive = clockwise
 // ENU yaw: 0 = East, positive = counter-clockwise
@@ -211,12 +230,7 @@ export function activate(extensionContext: ExtensionContext): void {
 
       const time = convertTimestamp(timestamp);
 
-      // Convert NED to ENU frame
-      // NED: X=North, Y=East, Z=Down
-      // ENU: X=East, Y=North, Z=Up
-      const x_enu = y; // East = East
-      const y_enu = x; // North = North
-      const z_enu = -z; // Up = -Down
+      const { x: x_enu, y: y_enu, z: z_enu } = nedToEnuPosition(x, y, z);
 
       // Use heading to create quaternion if available, otherwise use identity rotation
       const rotation =
@@ -275,12 +289,7 @@ export function activate(extensionContext: ExtensionContext): void {
 
       const time = convertTimestamp(timestamp);
 
-      // Convert NED to ENU frame
-      // NED: X=North, Y=East, Z=Down
-      // ENU: X=East, Y=North, Z=Up
-      const x_enu = y; // East = East
-      const y_enu = x; // North = North
-      const z_enu = -z; // Up = -Down
+      const { x: x_enu, y: y_enu, z: z_enu } = nedToEnuPosition(x, y, z);
 
       // Create orientation from heading if available, otherwise use identity
       const orientation =
