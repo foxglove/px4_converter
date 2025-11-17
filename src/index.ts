@@ -1,5 +1,5 @@
 import { ExtensionContext } from "@foxglove/extension";
-import { FrameTransform, LocationFix, PosesInFrame, Time } from "@foxglove/schemas";
+import { FrameTransform, LocationFix, PosesInFrame } from "@foxglove/schemas";
 
 import type { VehicleAttitude, VehicleGlobalPosition, VehicleLocalPosition } from "./types";
 import {
@@ -92,16 +92,6 @@ export function activate(extensionContext: ExtensionContext): void {
     },
   });
 
-  type PoseWithTimestamp = {
-    position: { x: number; y: number; z: number };
-    orientation: { x: number; y: number; z: number; w: number };
-    timestamp: Time;
-  };
-
-  const accumulatedPoses: PoseWithTimestamp[] = [];
-  const MAX_POSES = 10000; // Maximum number of poses to keep (sliding window)
-  const MIN_DISTANCE_M = 0.03; // Minimum distance in meters before adding a new pose
-
   extensionContext.registerMessageConverter<VehicleLocalPosition>({
     type: "schema",
     fromSchemaName: "vehicle_local_position",
@@ -117,41 +107,16 @@ export function activate(extensionContext: ExtensionContext): void {
       const orientation =
         heading != undefined ? nedHeadingToEnuQuaternion(heading) : { w: 1, x: 0, y: 0, z: 0 };
 
-      // Only add pose if it's required distance away from the last pose
-      let shouldAddPose = true;
-      if (accumulatedPoses.length > 0) {
-        const lastPose = accumulatedPoses[accumulatedPoses.length - 1]!; // Safe: we checked length > 0
-        const dx = x_enu - lastPose.position.x;
-        const dy = y_enu - lastPose.position.y;
-        const dz = z_enu - lastPose.position.z;
-        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        shouldAddPose = distance >= MIN_DISTANCE_M;
-      }
-
-      // Add new pose to accumulated array if needed
-      if (shouldAddPose) {
-        accumulatedPoses.push({
-          position: { x: x_enu, y: y_enu, z: z_enu },
-          orientation,
-          timestamp: time,
-        });
-
-        // Keep fixed sliding window of poses
-        if (accumulatedPoses.length > MAX_POSES) {
-          accumulatedPoses.shift(); // Remove oldest pose
-        }
-      }
-
-      const poses = accumulatedPoses.map((p) => ({
-        position: p.position,
-        orientation: p.orientation,
-      }));
-
-      // Create PosesInFrame message
+      // Create PosesInFrame message with a single pose
       return {
         timestamp: time,
         frame_id: "local_origin",
-        poses, // All accumulated poses
+        poses: [
+          {
+            position: { x: x_enu, y: y_enu, z: z_enu },
+            orientation,
+          },
+        ],
       } as PosesInFrame;
     },
   });
