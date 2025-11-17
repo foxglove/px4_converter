@@ -1,9 +1,9 @@
 {
   "name": "px4Converter",
   "displayName": "px4Converter",
-  "description": "",
+  "description": "PX4 Converter extension that translates px4 messages to Foxglove schemas to visualize data in various panel types",
   "publisher": "Foxglove",
-  "homepage": "",
+  "homepage": "https://github.com/foxglove/px4_converter",
   "version": "0.1.0",
   "license": "MIT",
   "main": "./dist/extension.js",
@@ -15,7 +15,7 @@
     "lint:ci": "eslint .",
     "lint:fix": "eslint --fix .",
     "local-install": "foxglove-extension install",
-    "package": "foxglove-extension package",
+    "package": "foxglove-extension package -o dist/px4-converter-$npm_package_version.foxe",
     "pretest": "foxglove-extension pretest"
   },
   "devDependencies": {
