@@ -60,7 +60,7 @@ export function activate(extensionContext: ExtensionContext): void {
 
       return {
         timestamp: time,
-        parent_frame_id: "map",
+        parent_frame_id: "local_origin",
         child_frame_id: "base_intermediate", // Has no roll and pitch, only yaw
         translation: { x: x_enu, y: y_enu, z: z_enu },
         rotation,
@@ -150,7 +150,7 @@ export function activate(extensionContext: ExtensionContext): void {
       // Create PosesInFrame message
       return {
         timestamp: time,
-        frame_id: "map",
+        frame_id: "local_origin",
         poses, // All accumulated poses
       } as PosesInFrame;
     },
