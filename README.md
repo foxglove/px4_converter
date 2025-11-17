@@ -1,5 +1,16 @@
 # px4Converter
 
+PX4 Converter extension that translates px4 messages to Foxglove schemas to visualize data in various panel types.
+
+The converter will publish the following frame transforms:
+* local_origin - an ENU frame matching the EKF2 initialization frame
+* base_intermediate - an ENU intermediate frame containing the local position of the aircraft and yaw
+* base_link - same as base_intermediate but with applied Roll and Pitch angles
+
+
+# Foxglove Extension Workflow
+
+
 [Foxglove](https://foxglove.dev) allows developers to create [extensions](https://docs.foxglove.dev/docs/visualization/extensions/introduction), or custom code that is loaded and executed inside the Foxglove application. This can be used to add custom panels. Extensions are authored in TypeScript using the `@foxglove/extension` SDK.
 
 ## Develop
