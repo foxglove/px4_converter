@@ -1,5 +1,7 @@
 # px4Converter
 
+This extension is available in the Foxglove Extension Registry, you can install it by navigating to Settings->Extensions and selecting PX4 Converter from the list.
+
 PX4 Converter extension that translates px4 messages to Foxglove schemas to visualize data in various panel types.
 
 The converter will publish the following frame transforms:
